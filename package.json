@@ -1,0 +1,57 @@
+{
+  "name": "id-claims",
+  "version": "1.0.0",
+  "description":
+    "Smart contracts that implement self-sovereign identity, and verifiable claims",
+  "main": "truffle.js",
+  "directories": {
+    "test": "test",
+    "contracts": "contracts"
+  },
+  "engines": {
+    "node": "9.5.0",
+    "npm": "5.6.0"
+  },
+  "devDependencies": {
+    "eslint": "^4.16.0",
+    "eslint-config-prettier": "^2.8.0",
+    "eslint-config-standard": "^11.0.0-beta.0",
+    "eslint-plugin-import": "^2.8.0",
+    "eslint-plugin-mocha": "^4.11.0",
+    "eslint-plugin-node": "^6.0.0",
+    "eslint-plugin-prettier": "^2.3.1",
+    "eslint-plugin-promise": "^3.6.0",
+    "eslint-plugin-standard": "^3.0.1",
+    "faker": "^4.1.0",
+    "husky": "^0.14.3",
+    "lint-staged": "^6.1.0",
+    "prettier": "^1.10.2",
+    "solhint": "^1.1.10",
+    "solidity-coverage": "^0.4.9"
+  },
+  "scripts": {
+    "precommit": "lint-staged",
+    "prettier": "prettier --single-quote --no-semi --write '**/*.{js,json}'",
+    "eslint-check":
+      "eslint --print-config .eslintrc.js | eslint-config-prettier-check",
+    "test": "truffle test",
+    "test:cov": "solidity-coverage",
+    "lint:sol": "solhint contracts/**/*.sol",
+    "lint:js": "eslint test/**/*.js"
+  },
+  "lint-staged": {
+    "**/*.{js,json}": ["prettier --singlequote --no-semi --write", "git add"]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SelfKeyFoundation/id-claims.git"
+  },
+  "keywords": ["identity"],
+  "author": "Carlos Bruguera <cbruguera@gmail.com>",
+  "contributors": ["Dave Sag <david.sag@industrie.co>"],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/SelfKeyFoundation/id-claims/issues"
+  },
+  "homepage": "https://github.com/SelfKeyFoundation/id-claims#readme"
+}
