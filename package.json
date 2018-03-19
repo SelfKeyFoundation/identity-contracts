@@ -1,5 +1,5 @@
 {
-  "name": "id-claims",
+  "name": "did-claims",
   "version": "1.0.0",
   "description":
     "Smart contracts that implement self-sovereign identity, and verifiable claims",
@@ -47,11 +47,14 @@
     "url": "git+https://github.com/SelfKeyFoundation/id-claims.git"
   },
   "keywords": ["identity"],
-  "author": "Carlos Bruguera <cbruguera@gmail.com>",
-  "contributors": ["Dave Sag <david.sag@industrie.co>"],
+  "author": "Carlos Bruguera <carlos@selfkey.org>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/SelfKeyFoundation/id-claims/issues"
   },
-  "homepage": "https://github.com/SelfKeyFoundation/id-claims#readme"
+  "homepage": "https://github.com/SelfKeyFoundation/id-claims#readme",
+  "dependencies": {
+    "truffle": "^4.1.3",
+    "zeppelin-solidity": "^1.7.0"
+  }
 }
