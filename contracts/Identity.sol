@@ -19,7 +19,7 @@ contract Identity is ERC725b, Ownable, Destructible {
 
     /**
      * @dev Identity Constructor. Assigns a Management key to the creator.
-     * @param _sender — The creator of this identity.
+     * @param sender — The creator of this identity.
      */
     function Identity(address sender) public {
         // Adds sender as a management key
