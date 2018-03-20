@@ -34,9 +34,9 @@ jobs:
             - node_modules
 
       # run tests!
-      #- run:
-      #    name: Solidity Linter
-      #    command: npm run lint:sol
+      - run:
+          name: Solidity Linter
+          command: npm run lint:sol
 
       - run:
           name: Javascript Linter
