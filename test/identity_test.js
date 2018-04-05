@@ -63,5 +63,48 @@ contract('Identity', accounts => {
       // Checks key was effectively removed
       await assertThrows(identity.getKey(user2, MANAGEMENT_KEY))
     })
+
+    it('adds and retrieves new service endpoints', async () => {
+      const serviceEndpoint =
+        'https://hub.example.com/.identity/did:key:01234567abcdef/'
+      const serviceType = 'HubService'
+      await identity.addService(serviceType, serviceEndpoint)
+      const gotService = await identity.getServiceByType(serviceType)
+      assert.equal(gotService, serviceEndpoint)
+
+      // add a second service endpoint, because why not?
+      const serviceEndpoint2 = 'https://example.com/messages/8377464'
+      const serviceType2 = 'MessagingService'
+      await identity.addService(serviceType2, serviceEndpoint2)
+      const gotService2 = await identity.getServiceByType(serviceType2)
+      assert.equal(gotService2, serviceEndpoint2)
+
+      // check the services count is correct
+      const servicesCount = Number(await identity.servicesCount.call())
+      assert.equal(servicesCount, 2)
+    })
+
+    it('updates existing service endpoint', async () => {
+      const serviceEndpoint =
+        'https://hub.example.com/.identity/did:key:9876432cdefajj/'
+      const serviceType = 'HubService'
+      await identity.addService(serviceType, serviceEndpoint)
+      const gotService = await identity.getServiceByType(serviceType)
+      assert.equal(gotService, serviceEndpoint)
+
+      // check the services count is correct
+      const servicesCount = Number(await identity.servicesCount.call())
+      assert.equal(servicesCount, 2)
+    })
+
+    it('removes existing service endpoint', async () => {
+      const serviceType = 'HubService'
+      await identity.removeService(serviceType)
+      await assertThrows(identity.getServiceByType(serviceType))
+
+      // check the services count is correct
+      const servicesCount = Number(await identity.servicesCount.call())
+      assert.equal(servicesCount, 1)
+    })
   })
 })

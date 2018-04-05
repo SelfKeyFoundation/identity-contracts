@@ -1,8 +1,8 @@
 {
-  "name": "did-claims",
-  "version": "1.0.0",
+  "name": "identity-contracts",
+  "version": "0.0.1",
   "description":
-    "Smart contracts that implement self-sovereign identity, and verifiable claims",
+    "Smart contracts that implement SelfKey DID and verifiable credentials",
   "main": "truffle.js",
   "directories": {
     "test": "test",

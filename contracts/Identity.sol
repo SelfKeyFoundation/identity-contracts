@@ -1,6 +1,8 @@
 pragma solidity ^0.4.19;
 
-import './lib/ERC725b.sol';
+import './interfaces/ERC725b.sol';
+import './interfaces/ServiceCollection.sol';
+
 
 import 'zeppelin-solidity/contracts/ownership/Ownable.sol';
 import 'zeppelin-solidity/contracts/lifecycle/Destructible.sol';
@@ -9,7 +11,7 @@ import 'zeppelin-solidity/contracts/lifecycle/Destructible.sol';
  * @title Identity
  * @dev Contract that represents an identity
  */
-contract Identity is ERC725b, Ownable, Destructible {
+contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
     bytes16 idVersion = "0.0.1";
 
     modifier onlyManager () {
@@ -19,11 +21,11 @@ contract Identity is ERC725b, Ownable, Destructible {
 
     /**
      * @dev Identity Constructor. Assigns a Management key to the creator.
-     * @param sender — The creator of this identity.
+     * @param id_owner — The creator of this identity.
      */
-    function Identity(address sender) public {
+    function Identity(address id_owner) public {
         // Adds sender as a management key
-        keys[keccak256(sender, MANAGEMENT_KEY)] = Key(sender, MANAGEMENT_KEY, ECDSA);
+        keys[keccak256(id_owner, MANAGEMENT_KEY)] = Key(id_owner, MANAGEMENT_KEY, ECDSA);
     }
 
     /**
@@ -71,9 +73,76 @@ contract Identity is ERC725b, Ownable, Destructible {
     {
         bytes32 index = keccak256(_key, _type);
         delete keys[index];
-
         KeyRemoved(_key, _type);
 
         return true;
     }
+
+    /**
+     * @dev Adds a service endpoint to the identity
+     * @param _type — The service type (short string)
+     * @param _endpoint — The service endpoint URI
+     */
+    function addService(bytes32 _type, string _endpoint)
+        public
+        returns (bool)
+    {
+        bytes memory serviceBytes = bytes(servicesByType[_type]);
+        if (serviceBytes.length == 0) {
+            // service of such type doesn't exist yet
+            services.push(_type);
+            indexOfServiceType[_type] = servicesCount;
+            servicesCount = servicesCount + 1;
+        }
+        servicesByType[_type] = _endpoint;
+        ServiceAdded(_type);
+
+        return true;
+    }
+
+    /**
+     * @dev Gets a service endpoint given a type
+     * @param _type — The service type (short string) E.g. "HubService"
+     */
+    function getServiceByType(bytes32 _type)
+        public
+        view
+        returns (string)
+    {
+        bytes memory serviceBytes = bytes(servicesByType[_type]);
+        require(serviceBytes.length > 0);
+
+        return servicesByType[_type];
+    }
+
+    /**
+     * @dev Removes a service endpoint of the given type
+     * @param _type — The service type (short string) E.g. "HubService"
+     */
+    function removeService(bytes32 _type) public returns (bool) {
+        bytes memory serviceBytes = bytes(servicesByType[_type]);
+        require(serviceBytes.length > 0);
+
+        servicesByType[_type] = "";
+        uint256 index = indexOfServiceType[_type];
+        // What to do with the indexOfServiceType of the deleted service????
+        services[index] = services[servicesCount - 1];    // moves last element to deleted slot
+        servicesCount = servicesCount - 1;
+
+        return true;
+    }
+
+    /*function getServices()
+        public
+        view
+        returns (bytes32[])     // does this work?
+    {
+        bytes32[] memory response;
+        for (uint256 i = 0; i < servicesCount; i++) {
+            response[i] = services[i];
+            //response.length = response.length + 1;
+        }
+
+        return response;
+    }*/
 }
