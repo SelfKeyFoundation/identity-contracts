@@ -85,6 +85,7 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
      */
     function addService(bytes32 _type, string _endpoint)
         public
+        onlyManager
         returns (bool)
     {
         bytes memory serviceBytes = bytes(servicesByType[_type]);
@@ -119,7 +120,11 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
      * @dev Removes a service endpoint of the given type
      * @param _type — The service type (short string) E.g. "HubService"
      */
-    function removeService(bytes32 _type) public returns (bool) {
+    function removeService(bytes32 _type)
+        public
+        onlyManager
+        returns (bool)
+    {
         bytes memory serviceBytes = bytes(servicesByType[_type]);
         require(serviceBytes.length > 0);
 
@@ -131,18 +136,4 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
 
         return true;
     }
-
-    /*function getServices()
-        public
-        view
-        returns (bytes32[])     // does this work?
-    {
-        bytes32[] memory response;
-        for (uint256 i = 0; i < servicesCount; i++) {
-            response[i] = services[i];
-            //response.length = response.length + 1;
-        }
-
-        return response;
-    }*/
 }

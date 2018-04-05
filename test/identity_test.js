@@ -84,6 +84,15 @@ contract('Identity', accounts => {
       assert.equal(servicesCount, 2)
     })
 
+    it('fails to add services from a non manager address', async () => {
+      const serviceEndpoint =
+        'https://xdi.example.com/.identity/did:key:01234567abcdef/'
+      const serviceType = 'XDIService'
+      await assertThrows(
+        identity.addService(serviceType, serviceEndpoint, { from: user2 })
+      )
+    })
+
     it('updates existing service endpoint', async () => {
       const serviceEndpoint =
         'https://hub.example.com/.identity/did:key:9876432cdefajj/'
@@ -97,10 +106,28 @@ contract('Identity', accounts => {
       assert.equal(servicesCount, 2)
     })
 
+    it('fails to update services from a non manager address', async () => {
+      const serviceEndpoint =
+        'https://hub.attacker.com/.identity/did:key:01234567abcdef/'
+      const serviceType = 'HubService'
+      await assertThrows(
+        identity.addService(serviceType, serviceEndpoint, { from: user2 })
+      )
+    })
+
     it('removes existing service endpoint', async () => {
       const serviceType = 'HubService'
       await identity.removeService(serviceType)
       await assertThrows(identity.getServiceByType(serviceType))
+
+      // check the services count is correct
+      const servicesCount = Number(await identity.servicesCount.call())
+      assert.equal(servicesCount, 1)
+    })
+
+    it('fails to remove existing service endpoint if caller is not a manager', async () => {
+      const serviceType = 'MessagingService'
+      await assertThrows(identity.removeService(serviceType, { from: user2 }))
 
       // check the services count is correct
       const servicesCount = Number(await identity.servicesCount.call())
