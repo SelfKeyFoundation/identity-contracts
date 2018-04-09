@@ -4,7 +4,9 @@ import './interfaces/ERC725b.sol';
 import './interfaces/ServiceCollection.sol';
 
 
+import 'zeppelin-solidity/contracts/token/ERC20/ERC20.sol';
 import 'zeppelin-solidity/contracts/ownership/Ownable.sol';
+import 'zeppelin-solidity/contracts/token/ERC20/SafeERC20.sol';
 import 'zeppelin-solidity/contracts/lifecycle/Destructible.sol';
 
 /**
@@ -12,7 +14,12 @@ import 'zeppelin-solidity/contracts/lifecycle/Destructible.sol';
  * @dev Contract that represents an identity
  */
 contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
+    using SafeERC20 for ERC20;
+
     bytes16 idVersion = "0.0.1";
+
+    event ReceivedETH(uint256 amount, address sender);
+    event ReceivedERC20(uint256 amount, address sender, address token);
 
     modifier onlyManager () {
         require(keys[keccak256(msg.sender, MANAGEMENT_KEY)].key != 0);
@@ -26,6 +33,16 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
     function Identity(address id_owner) public {
         // Adds sender as a management key
         keys[keccak256(id_owner, MANAGEMENT_KEY)] = Key(id_owner, MANAGEMENT_KEY, ECDSA);
+    }
+
+    /**
+     * @dev Fallback function. Allows the contract to receive ETH payments
+     */
+    function()
+        public
+        payable
+    {
+        ReceivedETH(msg.value, msg.sender);
     }
 
     /**
@@ -135,5 +152,31 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         servicesCount = servicesCount - 1;
 
         return true;
+    }
+
+    /**
+     * @dev Withdraws ETH held by the identity contract
+     * @param amount — The amount of ETH to be withdrawn
+     */
+    function withdrawEth(uint256 amount)
+        public
+        onlyManager
+    {
+        require(amount <= this.balance);
+        msg.sender.transfer(amount);
+    }
+
+    /**
+     * @dev Withdraws ERC20 tokens held by the identity contract
+     * @param amount — The amount of tokens to be withdrawn
+     */
+    function withdrawERC20(uint256 amount, address tokenAddress)
+        public
+        onlyManager
+    {
+        ERC20 token = ERC20(tokenAddress);      // does this work?
+        // validate this is an ERC20 address
+        require(amount <= token.balanceOf(this));
+        token.safeTransfer(msg.sender, amount);
     }
 }
