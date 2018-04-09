@@ -1,14 +1,10 @@
 # How to contribute to this project
 
-## Development Environment
-
-All development is assumed to be done on a Mac running a modern version of OS X but ought to be pretty much the same no matter what unixy environment you use.
-
 ## Development Process
 
 All development is to follow the [standard git-flow](http://nvie.com/posts/a-successful-git-branching-model/) process, modified to allow for code-reviews.
 
-See this handy, if ugly, [cheat sheet](http://danielkummer.github.io/git-flow-cheatsheet/).
+For reference on git-flow commands, check out this [cheat sheet](http://danielkummer.github.io/git-flow-cheatsheet/).
 
 ### Setup
 

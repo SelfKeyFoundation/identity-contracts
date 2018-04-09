@@ -1,5 +1,6 @@
 const Identity = artifacts.require('./Identity.sol')
 const IdentityFactory = artifacts.require('./IdentityFactory.sol')
+const ERC20Mock = artifacts.require('../test/mock/ERC20Mock.sol')
 
 const assertThrows = require('./utils/assertThrows')
 const { getLog } = require('./utils/txHelpers')
@@ -16,19 +17,21 @@ const ECDSA = 3
 contract('Identity', accounts => {
   const [owner, user1, user2, user3, user4, user5] = accounts.slice(0)
   let factoryContract
+  let identity
 
-  context('Dynamic deployment of Identity contract', () => {
-    let identity
+  before(async () => {
+    // instantiate factory contract
+    factoryContract = await IdentityFactory.new()
+    assert.isNotNull(factoryContract)
 
-    before(async () => {
-      factoryContract = await IdentityFactory.new()
-      assert.isNotNull(factoryContract)
-    })
+    // create new identity through factory contract
+    const tx = await factoryContract.createIdentity()
+    const log = getLog(tx, 'IdentityCreated')
+    identity = Identity.at(log.args['idContract'])
+  })
 
+  context('Key management', () => {
     it('deploys successfully through factory contract', async () => {
-      const tx = await factoryContract.createIdentity()
-      const log = getLog(tx, 'IdentityCreated')
-      identity = Identity.at(log.args['idContract'])
       assert.isNotNull(identity)
     })
 
@@ -58,12 +61,14 @@ contract('Identity', accounts => {
       assert.equal(key[0], user2)
 
       // Original owner removes key
-      let tx = await identity.removeKey(user2, MANAGEMENT_KEY)
+      let tx = await identity.removeKey(user2, MANAGEMENT_KEY, { from: owner })
 
       // Checks key was effectively removed
       await assertThrows(identity.getKey(user2, MANAGEMENT_KEY))
     })
+  })
 
+  context('Service Endpoints', () => {
     it('adds and retrieves new service endpoints', async () => {
       const serviceEndpoint =
         'https://hub.example.com/.identity/did:key:01234567abcdef/'
@@ -132,6 +137,55 @@ contract('Identity', accounts => {
       // check the services count is correct
       const servicesCount = Number(await identity.servicesCount.call())
       assert.equal(servicesCount, 1)
+    })
+  })
+
+  context('Handling ETH and assets', () => {
+    let token
+
+    before(async () => {
+      const sendAmountEth = web3.toWei(2, 'ether')
+      const sendAmountToken = 2000
+
+      // send ETH to the identity contract
+      await identity.sendTransaction({
+        from: user1,
+        value: sendAmountEth
+      })
+      const balance = Number(web3.eth.getBalance(identity.address))
+      assert(balance, sendAmountEth)
+
+      //send ERC20 token to the identity contract
+      token = await ERC20Mock.new()
+      await token.transfer(identity.address, sendAmountToken, { from: owner })
+      const tokenBalance = await token.balanceOf(identity.address)
+      assert.equal(Number(tokenBalance), sendAmountToken)
+    })
+
+    it('allows withdrawal of ETH by a manager', async () => {
+      const ownerBalance1 = Number(web3.eth.getBalance(owner))
+      const contractBalance1 = Number(web3.eth.getBalance(identity.address))
+      await identity.withdrawEth(web3.toWei(1, 'ether'), { from: owner })
+      const ownerBalance2 = Number(web3.eth.getBalance(owner))
+      const contractBalance2 = Number(web3.eth.getBalance(identity.address))
+
+      assert.isAbove(ownerBalance2, ownerBalance1)
+      assert.isBelow(contractBalance2, contractBalance1)
+    })
+
+    it('allows withdrawal of ERC20 tokens by a manager', async () => {
+      const withdrawAmount = 1000
+
+      const ownerBalance1 = await token.balanceOf(owner)
+      const contractBalance1 = await token.balanceOf(identity.address)
+      await identity.withdrawERC20(withdrawAmount, token.address, {
+        from: owner
+      })
+      const ownerBalance2 = await token.balanceOf(owner)
+      const contractBalance2 = await token.balanceOf(identity.address)
+
+      assert.isAbove(Number(ownerBalance2), Number(ownerBalance1))
+      assert.isBelow(Number(contractBalance2), Number(contractBalance1))
     })
   })
 })
