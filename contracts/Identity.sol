@@ -16,7 +16,7 @@ import 'zeppelin-solidity/contracts/lifecycle/Destructible.sol';
 contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
     using SafeERC20 for ERC20;
 
-    bytes16 idVersion = "0.0.1";
+    bytes16 version = "0.1.1";
 
     event ReceivedETH(uint256 amount, address sender);
     event ReceivedERC20(uint256 amount, address sender, address token);
@@ -31,6 +31,7 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
      * @param id_owner — The creator of this identity.
      */
     function Identity(address id_owner) public {
+        owner = id_owner;
         // Adds sender as a management key
         keys[keccak256(id_owner, MANAGEMENT_KEY)] = Key(id_owner, MANAGEMENT_KEY, ECDSA);
     }
@@ -56,7 +57,12 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         public
         returns (bool)
     {
-        keys[keccak256(_key, _type)] = Key(_key, _type, _scheme);
+        bytes32 kec = keccak256(_key, _type);
+        keys[kec] = Key(_key, _type, _scheme);
+        keyHashes.push(kec);
+        indexOfKeyHash[kec] = keysCount;
+        keysCount = keysCount + 1;
+
         KeyAdded(_key, _type);
 
         return true;
@@ -88,8 +94,11 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         public
         returns (bool)
     {
-        bytes32 index = keccak256(_key, _type);
-        delete keys[index];
+        bytes32 _hash = keccak256(_key, _type);
+        uint256 index = indexOfKeyHash[_hash];
+        delete keys[_hash];
+        keyHashes[index] = keyHashes[keysCount - 1];    // moves last element to deleted slot
+        keysCount = keysCount - 1;
         KeyRemoved(_key, _type);
 
         return true;
@@ -145,11 +154,12 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         bytes memory serviceBytes = bytes(servicesByType[_type]);
         require(serviceBytes.length > 0);
 
-        servicesByType[_type] = "";
+
         uint256 index = indexOfServiceType[_type];
-        // What to do with the indexOfServiceType of the deleted service????
+        delete servicesByType[_type];
         services[index] = services[servicesCount - 1];    // moves last element to deleted slot
         servicesCount = servicesCount - 1;
+        ServiceRemoved(_type);
 
         return true;
     }

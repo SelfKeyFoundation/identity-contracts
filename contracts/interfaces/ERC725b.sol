@@ -23,7 +23,11 @@ contract ERC725b {
         uint256 scheme;
     }
 
-    mapping(bytes32 => Key) public keys;
+    mapping(bytes32 => Key) public keys;    // Keys by type
+    bytes32[] public keyHashes;
+    mapping(bytes32 => uint256) public indexOfKeyHash;
+
+    uint256 keysCount;
 
     event KeyAdded(address indexed key, uint256 indexed keyType);
     event KeyRemoved(address indexed key, uint256 indexed keyType);
