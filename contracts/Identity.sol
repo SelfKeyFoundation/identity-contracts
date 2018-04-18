@@ -131,11 +131,20 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         return true;
     }
 
+    /**
+     * @dev Retrieves a key (only the address-type field) given the numeric index
+     */
     function getAddressByIndex(uint256 index) public view returns (address){
+        require(index < keysCount);
         bytes32 _hash = keyHashes[index];
         return keys[_hash].key;
     }
 
+    /**
+     * @dev Retrieves the index of a combination of key and type.
+     * NOTE: this will return 0 as an index even if the key does not exist.
+     * This method is for debugging purposes.
+     */
     function getKeyIndex(address _key, uint256 _type)
         public
         view
@@ -225,8 +234,7 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         public
         onlyManager
     {
-        ERC20 token = ERC20(tokenAddress);      // does this work?
-        // validate this is an ERC20 address
+        ERC20 token = ERC20(tokenAddress);
         require(amount <= token.balanceOf(this));
         token.safeTransfer(msg.sender, amount);
     }
