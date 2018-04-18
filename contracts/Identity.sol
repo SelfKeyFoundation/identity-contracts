@@ -16,7 +16,7 @@ import 'zeppelin-solidity/contracts/lifecycle/Destructible.sol';
 contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
     using SafeERC20 for ERC20;
 
-    bytes16 idVersion = "0.0.1";
+    bytes16 version = "0.1.1";
 
     event ReceivedETH(uint256 amount, address sender);
     event ReceivedERC20(uint256 amount, address sender, address token);
@@ -26,13 +26,20 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         _;
     }
 
+    modifier onlyManagerOrSelf () {
+        require(msg.sender == address(this) || keys[keccak256(msg.sender, MANAGEMENT_KEY)].key != 0);
+        _;
+    }
+
     /**
      * @dev Identity Constructor. Assigns a Management key to the creator.
      * @param id_owner — The creator of this identity.
      */
     function Identity(address id_owner) public {
+        owner = id_owner;
         // Adds sender as a management key
-        keys[keccak256(id_owner, MANAGEMENT_KEY)] = Key(id_owner, MANAGEMENT_KEY, ECDSA);
+        //keys[keccak256(id_owner, MANAGEMENT_KEY)] = Key(id_owner, MANAGEMENT_KEY, ECDSA);
+        _addKey(id_owner, MANAGEMENT_KEY, ECDSA);
     }
 
     /**
@@ -56,10 +63,29 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         public
         returns (bool)
     {
-        keys[keccak256(_key, _type)] = Key(_key, _type, _scheme);
+        _addKey(_key, _type, _scheme);
         KeyAdded(_key, _type);
 
         return true;
+    }
+
+    /**
+     * @dev Internal function where key addition logic is implemented
+     */
+    function _addKey(address _key, uint256 _type, uint256 _scheme)
+        internal
+    {
+        bytes32 kec = keccak256(_key, _type);
+
+
+        // if key/type doesn't exists
+        if (keys[kec].key == address(0)) {
+            keyHashes.push(kec);
+            indexOfKeyHash[kec] = keysCount;
+            keysCount = keysCount + 1;
+        }
+
+        keys[kec] = Key(_key, _type, _scheme);
     }
 
     /**
@@ -72,10 +98,17 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         view
         returns (address, uint256, uint256)
     {
-        bytes32 index = keccak256(_key, _type);
-        require(keys[index].key != 0);
+        bytes32 _hash = keccak256(_key, _type);
+        return getKeyByHash(_hash);
+    }
 
-        return (keys[index].key, keys[index].keyType, keys[index].scheme);
+    function getKeyByHash(bytes32 _hash)
+        public
+        view
+        returns (address, uint256, uint256)
+    {
+        require(keys[_hash].key != 0);
+        return (keys[_hash].key, keys[_hash].keyType, keys[_hash].scheme);
     }
 
     /**
@@ -88,11 +121,37 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         public
         returns (bool)
     {
-        bytes32 index = keccak256(_key, _type);
-        delete keys[index];
+        bytes32 _hash = keccak256(_key, _type);
+        uint256 index = indexOfKeyHash[_hash];
+        keyHashes[index] = keyHashes[keysCount - 1];    // moves last element to deleted slot
+        keysCount = keysCount - 1;
+        delete keys[_hash];
         KeyRemoved(_key, _type);
 
         return true;
+    }
+
+    /**
+     * @dev Retrieves a key (only the address-type field) given the numeric index
+     */
+    function getAddressByIndex(uint256 index) public view returns (address){
+        require(index < keysCount);
+        bytes32 _hash = keyHashes[index];
+        return keys[_hash].key;
+    }
+
+    /**
+     * @dev Retrieves the index of a combination of key and type.
+     * NOTE: this will return 0 as an index even if the key does not exist.
+     * This method is for debugging purposes.
+     */
+    function getKeyIndex(address _key, uint256 _type)
+        public
+        view
+        returns (uint256)
+    {
+        bytes32 _hash = keccak256(_key, _type);
+        return indexOfKeyHash[_hash];
     }
 
     /**
@@ -145,11 +204,12 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         bytes memory serviceBytes = bytes(servicesByType[_type]);
         require(serviceBytes.length > 0);
 
-        servicesByType[_type] = "";
+
         uint256 index = indexOfServiceType[_type];
-        // What to do with the indexOfServiceType of the deleted service????
+        delete servicesByType[_type];
         services[index] = services[servicesCount - 1];    // moves last element to deleted slot
         servicesCount = servicesCount - 1;
+        ServiceRemoved(_type);
 
         return true;
     }
@@ -174,8 +234,7 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         public
         onlyManager
     {
-        ERC20 token = ERC20(tokenAddress);      // does this work?
-        // validate this is an ERC20 address
+        ERC20 token = ERC20(tokenAddress);
         require(amount <= token.balanceOf(this));
         token.safeTransfer(msg.sender, amount);
     }
