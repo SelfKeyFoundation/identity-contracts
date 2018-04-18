@@ -4,6 +4,7 @@ const ERC20Mock = artifacts.require('../test/mock/ERC20Mock.sol')
 
 const assertThrows = require('./utils/assertThrows')
 const { getLog } = require('./utils/txHelpers')
+const keccak256 = require('keccak')
 
 const MANAGEMENT_KEY = 1
 const ACTION_KEY = 2
@@ -48,11 +49,26 @@ contract('Identity', accounts => {
       )
     })
 
-    it('retrieves keys successfully', async () => {
+    it('retrieves a specific key successfully', async () => {
       let key = await identity.getKey(user2, MANAGEMENT_KEY)
       assert.equal(key[0], user2)
       key = await identity.getKey(user3, ACTION_KEY)
       assert.equal(key[0], user3)
+    })
+
+    it('can retrieve all added keys', async () => {
+      let keysCount = await identity.keysCount.call()
+      assert.equal(Number(keysCount), 3)
+
+      let key, hash
+      for (var i = 0; i < keysCount; i++) {
+        hash = await identity.keyHashes.call(i)
+        key = await identity.getKeyByHash(hash)
+
+        // check the first position of each key corresponds to a valid ethereum address
+        assert.isNotNull(key[0].match(/0x[0-9a-fA-F]{40}/))
+        //console.log(key[0] + " => " + Number(key[1]))
+      }
     })
 
     it('removes key only if sender has manager role', async () => {
@@ -65,6 +81,20 @@ contract('Identity', accounts => {
 
       // Checks key was effectively removed
       await assertThrows(identity.getKey(user2, MANAGEMENT_KEY))
+
+      // check the key counter and key indexing structures are correct
+      const keysCount = await identity.keysCount.call()
+      assert.equal(Number(keysCount), 2)
+
+      let deletingKey, hash
+      for (var i = 0; i < keysCount; i++) {
+        hash = await identity.keyHashes.call(i)
+        deletingKey = await identity.getKeyByHash(hash)
+
+        // check the first position of each key corresponds to a valid ethereum address
+        assert.isNotNull(deletingKey[0].match(/0x[0-9a-fA-F]{40}/))
+        //console.log(deletingKey[0] + " => " + Number(deletingKey[1]))
+      }
     })
   })
 

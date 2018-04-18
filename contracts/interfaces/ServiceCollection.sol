@@ -15,7 +15,7 @@ contract ServiceCollection {
 
     mapping(bytes32 => string) public servicesByType;
     mapping(bytes32 => uint256) public indexOfServiceType;
-    bytes32[] public services;
+    bytes32[] public services;    // array for added services types
     uint256 public servicesCount;
 
     event ServiceAdded(bytes32 _type);

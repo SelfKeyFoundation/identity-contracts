@@ -27,7 +27,7 @@ contract ERC725b {
     bytes32[] public keyHashes;
     mapping(bytes32 => uint256) public indexOfKeyHash;
 
-    uint256 keysCount;
+    uint256 public keysCount = 0;
 
     event KeyAdded(address indexed key, uint256 indexed keyType);
     event KeyRemoved(address indexed key, uint256 indexed keyType);

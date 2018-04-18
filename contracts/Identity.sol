@@ -26,6 +26,11 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         _;
     }
 
+    modifier onlyManagerOrSelf () {
+        require(msg.sender == address(this) || keys[keccak256(msg.sender, MANAGEMENT_KEY)].key != 0);
+        _;
+    }
+
     /**
      * @dev Identity Constructor. Assigns a Management key to the creator.
      * @param id_owner — The creator of this identity.
@@ -33,7 +38,8 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
     function Identity(address id_owner) public {
         owner = id_owner;
         // Adds sender as a management key
-        keys[keccak256(id_owner, MANAGEMENT_KEY)] = Key(id_owner, MANAGEMENT_KEY, ECDSA);
+        //keys[keccak256(id_owner, MANAGEMENT_KEY)] = Key(id_owner, MANAGEMENT_KEY, ECDSA);
+        _addKey(id_owner, MANAGEMENT_KEY, ECDSA);
     }
 
     /**
@@ -57,15 +63,29 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         public
         returns (bool)
     {
-        bytes32 kec = keccak256(_key, _type);
-        keys[kec] = Key(_key, _type, _scheme);
-        keyHashes.push(kec);
-        indexOfKeyHash[kec] = keysCount;
-        keysCount = keysCount + 1;
-
+        _addKey(_key, _type, _scheme);
         KeyAdded(_key, _type);
 
         return true;
+    }
+
+    /**
+     * @dev Internal function where key addition logic is implemented
+     */
+    function _addKey(address _key, uint256 _type, uint256 _scheme)
+        internal
+    {
+        bytes32 kec = keccak256(_key, _type);
+
+
+        // if key/type doesn't exists
+        if (keys[kec].key == address(0)) {
+            keyHashes.push(kec);
+            indexOfKeyHash[kec] = keysCount;
+            keysCount = keysCount + 1;
+        }
+
+        keys[kec] = Key(_key, _type, _scheme);
     }
 
     /**
@@ -78,10 +98,17 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         view
         returns (address, uint256, uint256)
     {
-        bytes32 index = keccak256(_key, _type);
-        require(keys[index].key != 0);
+        bytes32 _hash = keccak256(_key, _type);
+        return getKeyByHash(_hash);
+    }
 
-        return (keys[index].key, keys[index].keyType, keys[index].scheme);
+    function getKeyByHash(bytes32 _hash)
+        public
+        view
+        returns (address, uint256, uint256)
+    {
+        require(keys[_hash].key != 0);
+        return (keys[_hash].key, keys[_hash].keyType, keys[_hash].scheme);
     }
 
     /**
@@ -96,12 +123,26 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
     {
         bytes32 _hash = keccak256(_key, _type);
         uint256 index = indexOfKeyHash[_hash];
-        delete keys[_hash];
         keyHashes[index] = keyHashes[keysCount - 1];    // moves last element to deleted slot
         keysCount = keysCount - 1;
+        delete keys[_hash];
         KeyRemoved(_key, _type);
 
         return true;
+    }
+
+    function getAddressByIndex(uint256 index) public view returns (address){
+        bytes32 _hash = keyHashes[index];
+        return keys[_hash].key;
+    }
+
+    function getKeyIndex(address _key, uint256 _type)
+        public
+        view
+        returns (uint256)
+    {
+        bytes32 _hash = keccak256(_key, _type);
+        return indexOfKeyHash[_hash];
     }
 
     /**
