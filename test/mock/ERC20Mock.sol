@@ -13,7 +13,7 @@ contract ERC20Mock is StandardToken {
 
     uint256 MAX_SUPPLY = 5000;
 
-    function ERC20Mock () public {
+    constructor() public {
         balances[msg.sender] = MAX_SUPPLY;
     }
 }

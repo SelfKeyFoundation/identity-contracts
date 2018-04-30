@@ -1,6 +1,6 @@
-pragma solidity ^0.4.19;
+pragma solidity ^0.4.23;
 
-import './interfaces/ERC725b.sol';
+import './interfaces/ERC725.sol';
 import './interfaces/ServiceCollection.sol';
 
 
@@ -13,7 +13,7 @@ import 'zeppelin-solidity/contracts/lifecycle/Destructible.sol';
  * @title Identity
  * @dev Contract that represents an identity
  */
-contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
+contract Identity is ERC725, ServiceCollection, Ownable, Destructible {
     using SafeERC20 for ERC20;
 
     bytes16 version = "0.1.1";
@@ -35,7 +35,7 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
      * @dev Identity Constructor. Assigns a Management key to the creator.
      * @param id_owner — The creator of this identity.
      */
-    function Identity(address id_owner) public {
+    constructor(address id_owner) public {
         owner = id_owner;
         // Adds sender as a management key
         //keys[keccak256(id_owner, MANAGEMENT_KEY)] = Key(id_owner, MANAGEMENT_KEY, ECDSA);
@@ -49,22 +49,21 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         public
         payable
     {
-        ReceivedETH(msg.value, msg.sender);
+        emit ReceivedETH(msg.value, msg.sender);
     }
 
     /**
      * @dev Adds a new key (address) to the identity
      * @param _key — The key (address) to be added
-     * @param _type — The key type (Management, Action, etc)
-     * @param _scheme — The scheme to be used for verifying this key (ECDSA, RSA, etc)
+     * @param _purpose — The key purpose (Management, Action, etc)
+     * @param _keyType — The cryptographic type (scheme) of the key (ECDSA, RSA, etc)
      */
-    function addKey(address _key, uint256 _type, uint256 _scheme)
+    function addKey(address _key, uint256 _purpose, uint256 _keyType)
         onlyManager
         public
         returns (bool)
     {
-        _addKey(_key, _type, _scheme);
-        KeyAdded(_key, _type);
+        _addKey(_key, _purpose, _keyType);
 
         return true;
     }
@@ -72,20 +71,21 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
     /**
      * @dev Internal function where key addition logic is implemented
      */
-    function _addKey(address _key, uint256 _type, uint256 _scheme)
+    function _addKey(address _key, uint256 _purpose, uint256 _keyType)
         internal
     {
-        bytes32 kec = keccak256(_key, _type);
+        bytes32 kec = keccak256(_key, _purpose);
 
 
-        // if key/type doesn't exists
+        // if key/purpose doesn't exists
         if (keys[kec].key == address(0)) {
             keyHashes.push(kec);
             indexOfKeyHash[kec] = keysCount;
             keysCount = keysCount + 1;
         }
 
-        keys[kec] = Key(_key, _type, _scheme);
+        keys[kec] = Key(_key, _purpose, _keyType);
+        emit KeyAdded(_key, _purpose);
     }
 
     /**
@@ -108,7 +108,7 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         returns (address, uint256, uint256)
     {
         require(keys[_hash].key != 0);
-        return (keys[_hash].key, keys[_hash].keyType, keys[_hash].scheme);
+        return (keys[_hash].key, keys[_hash].purpose, keys[_hash].keyType);
     }
 
     /**
@@ -126,7 +126,7 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         keyHashes[index] = keyHashes[keysCount - 1];    // moves last element to deleted slot
         keysCount = keysCount - 1;
         delete keys[_hash];
-        KeyRemoved(_key, _type);
+        emit KeyRemoved(_key, _type);
 
         return true;
     }
@@ -172,7 +172,7 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
             servicesCount = servicesCount + 1;
         }
         servicesByType[_type] = _endpoint;
-        ServiceAdded(_type);
+        emit ServiceAdded(_type);
 
         return true;
     }
@@ -209,7 +209,7 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         delete servicesByType[_type];
         services[index] = services[servicesCount - 1];    // moves last element to deleted slot
         servicesCount = servicesCount - 1;
-        ServiceRemoved(_type);
+        emit ServiceRemoved(_type);
 
         return true;
     }
@@ -222,7 +222,7 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         public
         onlyManager
     {
-        require(amount <= this.balance);
+        require(amount <= address(this).balance);
         msg.sender.transfer(amount);
     }
 

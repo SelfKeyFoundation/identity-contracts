@@ -12,7 +12,7 @@ contract IdentityFactory is Ownable, Destructible {
 
     event IdentityCreated(address sender, address idContract);
 
-    function IdentityFactory()
+    constructor()
         public
     {
     }
@@ -21,6 +21,6 @@ contract IdentityFactory is Ownable, Destructible {
         public      // should be public? Or should only IdentityRegistry/Manager be able to invoke?
     {
         Identity newId = new Identity(msg.sender);   //save reference somewhere?
-        IdentityCreated(msg.sender, address(newId));
+        emit IdentityCreated(msg.sender, address(newId));
     }
 }
