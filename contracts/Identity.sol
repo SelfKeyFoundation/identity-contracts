@@ -1,8 +1,7 @@
-pragma solidity ^0.4.19;
+pragma solidity ^0.4.23;
 
-import './interfaces/ERC725b.sol';
+import './KeyHolder.sol';
 import './interfaces/ServiceCollection.sol';
-
 
 import 'zeppelin-solidity/contracts/token/ERC20/ERC20.sol';
 import 'zeppelin-solidity/contracts/ownership/Ownable.sol';
@@ -13,7 +12,7 @@ import 'zeppelin-solidity/contracts/lifecycle/Destructible.sol';
  * @title Identity
  * @dev Contract that represents an identity
  */
-contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
+contract Identity is KeyHolder, ServiceCollection, Ownable, Destructible {
     using SafeERC20 for ERC20;
 
     bytes16 version = "0.1.1";
@@ -21,25 +20,13 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
     event ReceivedETH(uint256 amount, address sender);
     event ReceivedERC20(uint256 amount, address sender, address token);
 
-    modifier onlyManager () {
-        require(keys[keccak256(msg.sender, MANAGEMENT_KEY)].key != 0);
-        _;
-    }
-
-    modifier onlyManagerOrSelf () {
-        require(msg.sender == address(this) || keys[keccak256(msg.sender, MANAGEMENT_KEY)].key != 0);
-        _;
-    }
-
     /**
      * @dev Identity Constructor. Assigns a Management key to the creator.
      * @param id_owner — The creator of this identity.
      */
-    function Identity(address id_owner) public {
+    constructor(address id_owner) public {
         owner = id_owner;
-        // Adds sender as a management key
-        //keys[keccak256(id_owner, MANAGEMENT_KEY)] = Key(id_owner, MANAGEMENT_KEY, ECDSA);
-        _addKey(id_owner, MANAGEMENT_KEY, ECDSA);
+        _addKey(keccak256(id_owner), MANAGEMENT_KEY, ECDSA);   // Adds sender as a management key
     }
 
     /**
@@ -49,109 +36,98 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         public
         payable
     {
-        ReceivedETH(msg.value, msg.sender);
+        if (msg.value > 0) {
+            emit ReceivedETH(msg.value, msg.sender);
+        }
     }
 
     /**
-     * @dev Adds a new key (address) to the identity
-     * @param _key — The key (address) to be added
-     * @param _type — The key type (Management, Action, etc)
-     * @param _scheme — The scheme to be used for verifying this key (ECDSA, RSA, etc)
+     * @dev Withdraws ETH held by the identity contract
+     * @param amount — The amount of ETH to be withdrawn
      */
-    function addKey(address _key, uint256 _type, uint256 _scheme)
-        onlyManager
+    function withdrawEth(uint256 amount)
         public
-        returns (bool)
+        onlyManager
     {
-        _addKey(_key, _type, _scheme);
-        KeyAdded(_key, _type);
-
-        return true;
+        require(amount <= address(this).balance);
+        msg.sender.transfer(amount);
     }
 
     /**
-     * @dev Internal function where key addition logic is implemented
+     * @dev Withdraws ERC20 tokens held by the identity contract
+     * @param amount — The amount of tokens to be withdrawn
      */
-    function _addKey(address _key, uint256 _type, uint256 _scheme)
-        internal
+    function withdrawERC20(uint256 amount, address tokenAddress)
+        public
+        onlyManager
     {
-        bytes32 kec = keccak256(_key, _type);
+        ERC20 token = ERC20(tokenAddress);
+        require(amount <= token.balanceOf(address(this)));
+        token.safeTransfer(msg.sender, amount);
+    }
 
+    /**
+     * @dev Executes an action on other contracts, or itself, or a transfer of ether.
+     * 1 or more approvals could be required.
+     */
+    function execute(address _to, uint256 _value, bytes _data)
+        public
+        returns (uint256 executionId)
+    {
+        require(!tasks[tasksCount].executed, "Already executed");   //Is this needed?
 
-        // if key/type doesn't exists
-        if (keys[kec].key == address(0)) {
-            keyHashes.push(kec);
-            indexOfKeyHash[kec] = keysCount;
-            keysCount = keysCount + 1;
+        tasks[tasksCount].to = _to;
+        tasks[tasksCount].value = _value;
+        tasks[tasksCount].data = _data;
+
+        emit ExecutionRequested(tasksCount, _to, _value, _data);
+
+        if (keyHasPurpose(keccak256(msg.sender), ACTION_KEY))
+        {
+            approve(tasksCount, true);
         }
 
-        keys[kec] = Key(_key, _type, _scheme);
+        tasksCount = tasksCount + 1;
+        return tasksCount - 1;
     }
 
     /**
-     * @dev Retrieves a key by its address and type
-     * @param _key — The key (address) to be retrieved
-     * @param _type — The key type (Management, Action, etc)
+     * @dev Approves an execution or claim addition.
      */
-    function getKey(address _key, uint256 _type)
+    function approve(uint256 _id, bool _approve)
         public
-        view
-        returns (address, uint256, uint256)
+        returns (bool success)
     {
-        bytes32 _hash = keccak256(_key, _type);
-        return getKeyByHash(_hash);
-    }
+        require(keyHasPurpose(keccak256(msg.sender), ACTION_KEY),
+            "Sender does not have at least level 2 (action) key");
 
-    function getKeyByHash(bytes32 _hash)
-        public
-        view
-        returns (address, uint256, uint256)
-    {
-        require(keys[_hash].key != 0);
-        return (keys[_hash].key, keys[_hash].keyType, keys[_hash].scheme);
-    }
+        if (_approve == true) {
+            tasks[_id].approved = true;
+            success = tasks[_id].to.call(tasks[_id].data, tasks[_id].value);
+            if (success) {
+                tasks[_id].executed = true;
+                emit Executed(
+                    _id,
+                    tasks[_id].to,
+                    tasks[_id].value,
+                    tasks[_id].data
+                );
+                return true;
+            } else {
+                emit ExecutionFailed(
+                    _id,
+                    tasks[_id].to,
+                    tasks[_id].value,
+                    tasks[_id].data
+                );
+                return false;
+            }
+        } else {
+            tasks[_id].approved = false;
+        }
 
-    /**
-     * @dev Removes a key (doable only by addresses added of the MANAGEMENT type)
-     * @param _key — The key (address) to be removed
-     * @param _type — The key type (Management, Action, etc)
-     */
-    function removeKey(address _key, uint256 _type)
-        onlyManager
-        public
-        returns (bool)
-    {
-        bytes32 _hash = keccak256(_key, _type);
-        uint256 index = indexOfKeyHash[_hash];
-        keyHashes[index] = keyHashes[keysCount - 1];    // moves last element to deleted slot
-        keysCount = keysCount - 1;
-        delete keys[_hash];
-        KeyRemoved(_key, _type);
-
+        emit Approved(_id, _approve);
         return true;
-    }
-
-    /**
-     * @dev Retrieves a key (only the address-type field) given the numeric index
-     */
-    function getAddressByIndex(uint256 index) public view returns (address){
-        require(index < keysCount);
-        bytes32 _hash = keyHashes[index];
-        return keys[_hash].key;
-    }
-
-    /**
-     * @dev Retrieves the index of a combination of key and type.
-     * NOTE: this will return 0 as an index even if the key does not exist.
-     * This method is for debugging purposes.
-     */
-    function getKeyIndex(address _key, uint256 _type)
-        public
-        view
-        returns (uint256)
-    {
-        bytes32 _hash = keccak256(_key, _type);
-        return indexOfKeyHash[_hash];
     }
 
     /**
@@ -172,7 +148,7 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
             servicesCount = servicesCount + 1;
         }
         servicesByType[_type] = _endpoint;
-        ServiceAdded(_type);
+        emit ServiceAdded(_type);
 
         return true;
     }
@@ -209,33 +185,8 @@ contract Identity is ERC725b, ServiceCollection, Ownable, Destructible {
         delete servicesByType[_type];
         services[index] = services[servicesCount - 1];    // moves last element to deleted slot
         servicesCount = servicesCount - 1;
-        ServiceRemoved(_type);
+        emit ServiceRemoved(_type);
 
         return true;
-    }
-
-    /**
-     * @dev Withdraws ETH held by the identity contract
-     * @param amount — The amount of ETH to be withdrawn
-     */
-    function withdrawEth(uint256 amount)
-        public
-        onlyManager
-    {
-        require(amount <= this.balance);
-        msg.sender.transfer(amount);
-    }
-
-    /**
-     * @dev Withdraws ERC20 tokens held by the identity contract
-     * @param amount — The amount of tokens to be withdrawn
-     */
-    function withdrawERC20(uint256 amount, address tokenAddress)
-        public
-        onlyManager
-    {
-        ERC20 token = ERC20(tokenAddress);
-        require(amount <= token.balanceOf(this));
-        token.safeTransfer(msg.sender, amount);
     }
 }
