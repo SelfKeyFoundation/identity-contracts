@@ -17,29 +17,51 @@ contract ERC725 {
     uint256 public constant RSA = 2;
     uint256 public constant ECDSA = 3;
 
+    bytes32[] public keyIndexes;
+
+    mapping(bytes32 => Key) public keys;
+    mapping(bytes32 => uint256) public indexOfKey;
+
+    // counters
+    uint256 public keysCount = 0;
+    uint256 public tasksCount = 0;
+
+    mapping (uint256 => Task) tasks;
+
     struct Key {
-        address key;    //ERC725 defines it as bytes32
+        bytes32 key;
         uint256 purpose;
         uint256 keyType;
     }
 
-    mapping(bytes32 => Key) public keys;    // Keys by type
-    bytes32[] public keyHashes;
-    mapping(bytes32 => uint256) public indexOfKeyHash;
+    struct Task {
+        address to;
+        uint256 value;
+        bytes data;
+        bool approved;
+        bool executed;
+    }
 
-    uint256 public keysCount = 0;
+    event KeyAdded(bytes32 indexed key, uint256 indexed purpose, uint256 indexed keyType);
+    event KeyRemoved(bytes32 indexed key, uint256 indexed purpose,  uint256 indexed keyType);
+    event Executed(uint256 indexed taskId, address indexed to, uint256 indexed value, bytes data);
+    event Approved(uint256 indexed taskId, bool approved);
 
-    event KeyAdded(address indexed key, uint256 indexed purpose);
-    event KeyRemoved(address indexed key, uint256 indexed purpose);
-    //event KeyReplaced(address indexed oldKey, address indexed newKey, uint256 indexed purpose);
-    event ExecutionRequested(bytes32 indexed executionId, address indexed to, uint256 indexed value, bytes data);
-    event Executed(bytes32 indexed executionId, address indexed to, uint256 indexed value, bytes data);
-    event Approved(bytes32 indexed executionId, bool approved);
+    event ExecutionRequested(
+        uint256 indexed executionId,
+        address indexed to,
+        uint256 indexed value,
+        bytes data);
+    event ExecutionFailed(
+        uint256 indexed executionId,
+        address indexed to,
+        uint256 indexed value,
+        bytes data);
 
-    function getKey(address _key, uint256 _purpose) public view returns (address, uint256, uint256);
-    function addKey(address _key, uint256 _purpose, uint256 _keyType) public returns (bool);
-    function removeKey(address _key, uint256 _purpose) public returns (bool);
+    function getKey(bytes32 _key) public view returns (bytes32, uint256, uint256);
+    function addKey(bytes32 _key, uint256 _purpose, uint256 _keyType) public returns (bool);
+    function removeKey(bytes32 _key) public returns (bool);
     //function replaceKey(address _oldKey, address _newKey) public returns (bool success);
-    //function execute(address _to, uint256 _value, bytes _data) public returns (bytes32 executionId);
-    //function approve(bytes32 _id, bool _approve) public returns (bool success);
+    function execute(address _to, uint256 _value, bytes _data) public returns (uint256);
+    function approve(uint256 _id, bool _approve) public returns (bool);
 }

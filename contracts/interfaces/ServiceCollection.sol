@@ -22,8 +22,7 @@ contract ServiceCollection {
     event ServiceRemoved(bytes32 _type);
     event ServiceUpdated(bytes32 _type);
 
+    function addService(bytes32 _type, string _endpoint) public returns (bool);
     function getServiceByType(bytes32 _type) public view returns (string);
-    function addService(bytes32 _type, string _serviceEndpoint) public returns (bool);
     function removeService(bytes32 _type) public returns (bool);
-    //function getServices() public view returns (Service[] memory);
 }
