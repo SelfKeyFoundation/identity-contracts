@@ -26,7 +26,7 @@ contract ERC725 {
     uint256 public keysCount = 0;
     uint256 public tasksCount = 0;
 
-    mapping (uint256 => Task) private tasks;
+    mapping (uint256 => Task) public tasks;
 
     struct Key {
         bytes32 key;
@@ -52,7 +52,7 @@ contract ERC725 {
         address indexed to,
         uint256 indexed value,
         bytes data);
-        
+
     event ExecutionFailed(
         uint256 indexed executionId,
         address indexed to,
