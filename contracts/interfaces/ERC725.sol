@@ -59,6 +59,8 @@ contract ERC725 {
         bytes data);
 
     function getKey(bytes32 _key) public view returns (bytes32, uint256, uint256);
+    function keyHasPurpose(bytes32 _key, uint256 purpose) public view returns(bool);
+    //function getKeysByPurpose(uint256 _purpose) constant returns(bytes32[] keys);
     function addKey(bytes32 _key, uint256 _purpose, uint256 _keyType) public returns (bool);
     function removeKey(bytes32 _key) public returns (bool);
     //function replaceKey(address _oldKey, address _newKey) public returns (bool success);
