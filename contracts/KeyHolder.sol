@@ -9,6 +9,11 @@ contract KeyHolder is ERC725 {
         _;
     }
 
+    modifier onlyActionKeyHolder () {
+        require(keyHasPurpose(keccak256(msg.sender), ACTION_KEY));
+        _;
+    }
+
     /*modifier onlyManagerOrSelf () {
         require(msg.sender == address(this) ||
             keyHasPurpose(keccak256(msg.sender), MANAGEMENT_KEY));

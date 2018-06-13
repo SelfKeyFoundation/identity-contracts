@@ -8,7 +8,7 @@ import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
 import 'openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol';
 import 'openzeppelin-solidity/contracts/lifecycle/Destructible.sol';
 
-import 'staked-access/contracts/StakingManager.sol';
+import 'selfkey-staking/contracts/StakingManager.sol';
 import 'selfkey-name-registry/contracts/NameRegistry.sol';
 
 /**
@@ -208,7 +208,7 @@ contract Identity is KeyHolder, ServiceCollection, Ownable, Destructible {
         public onlyActionKeyHolder
     {
         NameRegistry registry = NameRegistry(registryAddress);
-        bool result = registry.registerName(name);
+        registry.registerName(name);
         // change registerName function to return proper bool?
     }
 }

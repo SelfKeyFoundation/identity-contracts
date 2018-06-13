@@ -58,6 +58,8 @@
     "openzeppelin-solidity": "^1.9.0",
     "truffle": "^4.1.11",
     "web3": "^0.20.6",
-    "web3-provider-engine": "^8.6.1"
+    "web3-provider-engine": "^8.6.1",
+    "selfkey-staking": "^1.0.0",
+    "selfkey-name-registry": "^1.0.0"
   }
 }
