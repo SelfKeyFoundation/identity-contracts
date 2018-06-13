@@ -9,11 +9,11 @@ contract KeyHolder is ERC725 {
         _;
     }
 
-    modifier onlyManagerOrSelf () {
+    /*modifier onlyManagerOrSelf () {
         require(msg.sender == address(this) ||
             keyHasPurpose(keccak256(msg.sender), MANAGEMENT_KEY));
         _;
-    }
+    }*/
 
     /**
      * @dev Adds a new key (32 byte hash) to the identity
@@ -73,7 +73,7 @@ contract KeyHolder is ERC725 {
         view
         returns (bytes32, uint256, uint256)
     {
-        require(keys[_key].key == _key);
+        require(keys[_key].key == _key, "Key does not exist");
         return (keys[_key].key, keys[_key].purpose, keys[_key].keyType);
     }
 

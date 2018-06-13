@@ -1,4 +1,3 @@
 module.exports = {
-  //skipFiles: []
-  copyNodeModules: true
+  copyPackages: ["openzeppelin-solidity"]
 }

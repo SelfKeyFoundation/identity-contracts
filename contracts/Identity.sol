@@ -3,10 +3,13 @@ pragma solidity ^0.4.23;
 import './KeyHolder.sol';
 import './interfaces/ServiceCollection.sol';
 
-import 'zeppelin-solidity/contracts/token/ERC20/ERC20.sol';
-import 'zeppelin-solidity/contracts/ownership/Ownable.sol';
-import 'zeppelin-solidity/contracts/token/ERC20/SafeERC20.sol';
-import 'zeppelin-solidity/contracts/lifecycle/Destructible.sol';
+import 'openzeppelin-solidity/contracts/token/ERC20/ERC20.sol';
+import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
+import 'openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol';
+import 'openzeppelin-solidity/contracts/lifecycle/Destructible.sol';
+
+import 'staked-access/contracts/StakingManager.sol';
+import 'selfkey-name-registry/contracts/NameRegistry.sol';
 
 /**
  * @title Identity
@@ -188,5 +191,24 @@ contract Identity is KeyHolder, ServiceCollection, Ownable, Destructible {
         emit ServiceRemoved(_type);
 
         return true;
+    }
+
+    function stake(address stakingAddress, uint256 amount, bytes32 serviceID)
+        public
+        onlyActionKeyHolder
+    {
+        StakingManager staking = StakingManager(stakingAddress);
+        ERC20 token = ERC20(address(staking.token));
+        token.approve(stakingAddress, amount);
+        staking.stake(amount, serviceID);
+
+    }
+
+    function registerName(address registryAddress, bytes32 name)
+        public onlyActionKeyHolder
+    {
+        NameRegistry registry = NameRegistry(registryAddress);
+        bool result = registry.registerName(name);
+        // change registerName function to return proper bool?
     }
 }

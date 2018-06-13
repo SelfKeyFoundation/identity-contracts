@@ -1,8 +1,8 @@
 pragma solidity ^0.4.19;
 
 import './Identity.sol';
-import 'zeppelin-solidity/contracts/ownership/Ownable.sol';
-import 'zeppelin-solidity/contracts/lifecycle/Destructible.sol';
+import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
+import 'openzeppelin-solidity/contracts/lifecycle/Destructible.sol';
 
 /**
  * @title IdentityFactory
