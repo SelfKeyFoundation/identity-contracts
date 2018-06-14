@@ -1,4 +1,7 @@
 module.exports = {
-  //skipFiles: []
-  copyNodeModules: true
+  copyPackages: [
+    "openzeppelin-solidity",
+    "selfkey-staking",
+    "selfkey-name-registry"
+  ]
 }

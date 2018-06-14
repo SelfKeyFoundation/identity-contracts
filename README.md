@@ -7,7 +7,9 @@ Smart contracts that implement self-sovereign identity, and verifiable claims.
 
 ## Overview
 
-_insert overview_
+Selfkey implementation of ERC725 identity standard. It adds functionality specific for acting as a
+DID (Decentralized Identifier) contract, by providing the means to manage "service endpoints" and
+also sending or withdrawing ETH/tokens.
 
 ## Development
 

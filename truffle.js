@@ -1,5 +1,5 @@
-const hdWallet = require('./hdWallet')
-const web3Engine = require('./web3Engine')
+const hdWallet = require("./hdWallet")
+const web3Engine = require("./web3Engine")
 
 const {
   name: packageName,
@@ -7,23 +7,23 @@ const {
   description,
   keywords,
   license
-} = require('./package.json')
+} = require("./package.json")
 
 const DEFAULT = {
-  host: 'localhost',
+  host: "localhost",
   port: 8545,
-  network_id: '*', // Match any network id
+  network_id: "*", // Match any network id
   gas: 4600000
 }
 
-const walletPath = './wallet.json'
+const walletPath = "./local/wallet.json"
 
-const providerUrlRopsten = 'https://ropsten.infura.io/SYGRk61NUc3yN4NNRs60'
-const providerUrlMainnet = 'https://mainnet.infura.io/SYGRk61NUc3yN4NNRs60'
+const providerUrlRopsten = "https://ropsten.infura.io/SYGRk61NUc3yN4NNRs60"
+const providerUrlMainnet = "https://mainnet.infura.io/SYGRk61NUc3yN4NNRs60"
 
 const wallets = hdWallet(walletPath)
 
-const getAddress = wallet => `0x${wallet.getAddress().toString('hex')}`
+const getAddress = wallet => `0x${wallet.getAddress().toString("hex")}`
 const addresses = wallets.map(getAddress)
 
 const engineRopsten = web3Engine(wallets, providerUrlRopsten)
@@ -36,8 +36,8 @@ module.exports = {
   keywords,
   license,
   authors: [
-    'Carlos Bruguera <cbruguera@gmail.com>',
-    'Dave Sag <david.sag@industrie.co>'
+    "Carlos Bruguera <cbruguera@gmail.com>",
+    "Dave Sag <david.sag@industrie.co>"
   ],
   networks: {
     geth: { ...DEFAULT, gas: 999999 },
