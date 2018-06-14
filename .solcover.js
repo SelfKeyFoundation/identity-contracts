@@ -1,3 +1,7 @@
 module.exports = {
-  copyPackages: ["openzeppelin-solidity"]
+  copyPackages: [
+    "openzeppelin-solidity",
+    "selfkey-staking",
+    "selfkey-name-registry"
+  ]
 }
