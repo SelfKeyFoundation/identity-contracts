@@ -19,6 +19,7 @@ contract Identity is KeyHolder, ServiceCollection, Ownable, Destructible {
     using SafeERC20 for ERC20;
 
     bytes16 version = "0.1.1";
+    uint256 approvalThreshold = 1;
 
     event ReceivedETH(uint256 amount, address sender);
     event ReceivedERC20(uint256 amount, address sender, address token);
@@ -70,6 +71,16 @@ contract Identity is KeyHolder, ServiceCollection, Ownable, Destructible {
     }
 
     /**
+     * @dev ID manager can set how many approvals need to be done to execute a task
+     */
+    function setApprovalThreshold(uint256 threshold)
+        public
+        onlyManager
+    {
+        approvalThreshold = threshold;
+    }
+
+    /**
      * @dev Executes an action on other contracts, or itself, or a transfer of ether.
      * 1 or more approvals could be required.
      */
@@ -105,28 +116,31 @@ contract Identity is KeyHolder, ServiceCollection, Ownable, Destructible {
             "Sender does not have at least level 2 (action) key");
 
         if (_approve == true) {
-            tasks[_id].approved = true;
-            success = tasks[_id].to.call(tasks[_id].data, tasks[_id].value);
-            if (success) {
-                tasks[_id].executed = true;
-                emit Executed(
-                    _id,
-                    tasks[_id].to,
-                    tasks[_id].value,
-                    tasks[_id].data
-                );
-                return true;
-            } else {
-                emit ExecutionFailed(
-                    _id,
-                    tasks[_id].to,
-                    tasks[_id].value,
-                    tasks[_id].data
-                );
-                return false;
+            tasks[_id].approvals += 1;
+            if (tasks[_id].approvals >= approvalThreshold) {
+                tasks[_id].approved = true;
+                success = tasks[_id].to.call(tasks[_id].data, tasks[_id].value);
+                if (success) {
+                    tasks[_id].executed = true;
+                    emit Executed(
+                        _id,
+                        tasks[_id].to,
+                        tasks[_id].value,
+                        tasks[_id].data
+                    );
+                    return true;
+                } else {
+                    emit ExecutionFailed(
+                        _id,
+                        tasks[_id].to,
+                        tasks[_id].value,
+                        tasks[_id].data
+                    );
+                    return false;
+                }
             }
         } else {
-            tasks[_id].approved = false;
+            tasks[_id].approved = false;  //???
         }
 
         emit Approved(_id, _approve);
