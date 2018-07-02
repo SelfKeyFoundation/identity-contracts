@@ -19,7 +19,6 @@ contract Identity is KeyHolder, ServiceCollection, Ownable, Destructible {
     using SafeERC20 for ERC20;
 
     bytes16 version = "0.1.1";
-    uint256 approvalThreshold = 1;
 
     event ReceivedETH(uint256 amount, address sender);
     event ReceivedERC20(uint256 amount, address sender, address token);
@@ -88,8 +87,6 @@ contract Identity is KeyHolder, ServiceCollection, Ownable, Destructible {
         public
         returns (uint256 executionId)
     {
-        require(!tasks[tasksCount].executed, "Already executed");   //Is this needed?
-
         tasks[tasksCount].to = _to;
         tasks[tasksCount].value = _value;
         tasks[tasksCount].data = _data;
@@ -110,11 +107,9 @@ contract Identity is KeyHolder, ServiceCollection, Ownable, Destructible {
      */
     function approve(uint256 _id, bool _approve)
         public
+        onlyActionKeyHolder
         returns (bool success)
     {
-        require(keyHasPurpose(keccak256(msg.sender), ACTION_KEY),
-            "Sender does not have at least level 2 (action) key");
-
         if (_approve == true) {
             tasks[_id].approvals += 1;
             if (tasks[_id].approvals >= approvalThreshold) {
@@ -179,9 +174,6 @@ contract Identity is KeyHolder, ServiceCollection, Ownable, Destructible {
         view
         returns (string)
     {
-        bytes memory serviceBytes = bytes(servicesByType[_type]);
-        require(serviceBytes.length > 0);
-
         return servicesByType[_type];
     }
 
@@ -197,7 +189,6 @@ contract Identity is KeyHolder, ServiceCollection, Ownable, Destructible {
         bytes memory serviceBytes = bytes(servicesByType[_type]);
         require(serviceBytes.length > 0);
 
-
         uint256 index = indexOfServiceType[_type];
         delete servicesByType[_type];
         services[index] = services[servicesCount - 1];    // moves last element to deleted slot
@@ -207,7 +198,7 @@ contract Identity is KeyHolder, ServiceCollection, Ownable, Destructible {
         return true;
     }
 
-    function stake(address stakingAddress, uint256 amount, bytes32 serviceID)
+    /*function stake(address stakingAddress, uint256 amount, bytes32 serviceID)
         public
         onlyActionKeyHolder
     {
@@ -224,5 +215,5 @@ contract Identity is KeyHolder, ServiceCollection, Ownable, Destructible {
         NameRegistry registry = NameRegistry(registryAddress);
         registry.registerName(name);
         // change registerName function to return proper bool?
-    }
+    }*/
 }

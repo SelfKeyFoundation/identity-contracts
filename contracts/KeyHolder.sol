@@ -10,7 +10,8 @@ contract KeyHolder is ERC725 {
     }
 
     modifier onlyActionKeyHolder () {
-        require(keyHasPurpose(keccak256(msg.sender), ACTION_KEY));
+        require(keyHasPurpose(keccak256(msg.sender), ACTION_KEY),
+            "Sender does not have at least level 2 (action) key");
         _;
     }
 

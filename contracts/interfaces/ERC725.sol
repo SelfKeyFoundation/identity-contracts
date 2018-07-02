@@ -27,6 +27,7 @@ contract ERC725 {
     uint256 public tasksCount = 0;
 
     mapping (uint256 => Task) public tasks;
+    uint256 public approvalThreshold = 1;
 
     struct Key {
         bytes32 key;
@@ -40,6 +41,7 @@ contract ERC725 {
         bytes data;
         bool approved;
         bool executed;
+        uint256 approvals;
     }
 
     event KeyAdded(bytes32 indexed key, uint256 indexed purpose, uint256 indexed keyType);

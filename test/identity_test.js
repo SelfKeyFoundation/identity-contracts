@@ -20,11 +20,15 @@ contract("Identity", accounts => {
   const [owner, user1, user2, user3, user4, user5] = accounts.slice(0)
   let factoryContract
   let identity
+  let token
+  let executionRequest
 
   before(async () => {
     // instantiate factory contract
+    token = await ERC20Mock.new()
     factoryContract = await IdentityFactory.new()
     assert.isNotNull(factoryContract)
+    assert.isNotNull(token)
 
     // create new identity through factory contract
     const tx = await factoryContract.createIdentity()
@@ -68,9 +72,8 @@ contract("Identity", accounts => {
 
     it("retrieves a specific key successfully", async () => {
       let key = await identity.getKeyByAddress(user2)
-      //assert.equal(key[0], user2)   // NEEDS KECCAK HASH
       key = await identity.getKeyByAddress(user3)
-      //assert.equal(key[0], user3)
+      // if it doesn't throw error, then the key exists
     })
 
     it("can retrieve all added keys", async () => {
@@ -84,7 +87,6 @@ contract("Identity", accounts => {
 
         // check the first position of each key corresponds to a valid ethereum address
         assert.isNotNull(key[0].match(/0x[0-9a-fA-F]{40}/))
-        //console.log(key[0] + " => " + Number(key[1]))
       }
     })
 
@@ -174,9 +176,13 @@ contract("Identity", accounts => {
     })
 
     it("removes existing service endpoint", async () => {
+      // fails to remove a non-existing service
+      await assertThrows(identity.removeService("Monger"))
+
       const serviceType = "HubService"
       await identity.removeService(serviceType)
-      await assertThrows(identity.getServiceByType(serviceType))
+      const endpoint = await identity.getServiceByType(serviceType)
+      assert.equal(endpoint, "")
 
       // check the services count is correct
       const servicesCount = Number(await identity.servicesCount.call())
@@ -194,22 +200,28 @@ contract("Identity", accounts => {
   })
 
   context("Handling ETH and assets", () => {
-    let token
-
     before(async () => {
       const sendAmountEth = web3.toWei(2, "ether")
       const sendAmountToken = 2000
 
+      let tx = await identity.sendTransaction({
+        from: user1,
+        value: 0
+      })
+      let foundEvent = tx.logs.find(log => log.event === "ReceivedETH")
+      assert.isUndefined(foundEvent)
+
       // send ETH to the identity contract
-      await identity.sendTransaction({
+      tx = await identity.sendTransaction({
         from: user1,
         value: sendAmountEth
       })
+      const log = getLog(tx, "ReceivedETH")
+
+      // check balances changed accordingly
       const balance = Number(web3.eth.getBalance(identity.address))
       assert(balance, sendAmountEth)
 
-      //send ERC20 token to the identity contract
-      token = await ERC20Mock.new()
       await token.transfer(identity.address, sendAmountToken, { from: owner })
       const tokenBalance = await token.balanceOf.call(identity.address)
       assert.equal(Number(tokenBalance), sendAmountToken)
@@ -218,6 +230,12 @@ contract("Identity", accounts => {
     it("allows withdrawal of ETH by a manager", async () => {
       const ownerBalance1 = Number(web3.eth.getBalance(owner))
       const contractBalance1 = Number(web3.eth.getBalance(identity.address))
+
+      // withdrawing more than actual balance fails
+      await assertThrows(
+        identity.withdrawEth(web3.toWei(999999, "ether"), { from: owner })
+      )
+
       await identity.withdrawEth(web3.toWei(1, "ether"), { from: owner })
       const ownerBalance2 = Number(web3.eth.getBalance(owner))
       const contractBalance2 = Number(web3.eth.getBalance(identity.address))
@@ -231,6 +249,12 @@ contract("Identity", accounts => {
 
       const ownerBalance1 = await token.balanceOf.call(owner)
       const contractBalance1 = await token.balanceOf.call(identity.address)
+
+      // withdrawing more tokens than actual balance fails
+      await assertThrows(
+        identity.withdrawERC20(999999, token.address, { from: owner })
+      )
+
       await identity.withdrawERC20(withdrawAmount, token.address, {
         from: owner
       })
@@ -239,6 +263,96 @@ contract("Identity", accounts => {
 
       assert.isAbove(Number(ownerBalance2), Number(ownerBalance1))
       assert.isBelow(Number(contractBalance2), Number(contractBalance1))
+      assert.equal(Number(contractBalance2), 1000)
+    })
+  })
+
+  context("Task execution approval", () => {
+    it("allows setting an approval threshold by the contract manager", async () => {
+      await identity.setApprovalThreshold(2, { from: owner })
+      const threshold = await identity.approvalThreshold.call()
+      assert.equal(Number(threshold), 2)
+
+      // only the owner can do it
+      await assertThrows(identity.setApprovalThreshold(3, { from: user1 }))
+    })
+
+    it("allows task execution requests to be made (publicly)", async () => {
+      const value = 0
+      const callData = token.contract.transfer.getData(user5, 700, {
+        from: identity.address
+      })
+
+      const tasksCount = await identity.tasksCount.call()
+      const tx = await identity.execute(token.address, value, callData, {
+        from: user4
+      })
+      // get the task ID
+      const log = getLog(tx, "ExecutionRequested")
+      executionRequest = Number(log.args.executionId)
+
+      const tasksCount2 = await identity.tasksCount.call()
+      assert.equal(Number(tasksCount2), Number(tasksCount) + 1)
+    })
+
+    it("only action key holders can approve", async () => {
+      await assertThrows(
+        identity.approve(executionRequest, true, { from: user4 })
+      )
+    })
+
+    it("triggers task execution after enough approvals", async () => {
+      const bal1 = await token.balanceOf.call(user5)
+
+      // owner has MANAGEMENT_KEY
+      await identity.approve(executionRequest, true, { from: owner })
+      const bal2 = await token.balanceOf.call(user5)
+      assert.equal(Number(bal1), Number(bal2))
+
+      // second approval from ACTION_KEY holder
+      const hasActionKey = await identity.addressHasPurpose(user3, ACTION_KEY)
+      assert.isTrue(hasActionKey)
+      const tx = await identity.approve(executionRequest, true, { from: user3 })
+      const log = getLog(tx, "Executed")
+
+      // check the tokens were actually tranferred
+      const bal3 = await token.balanceOf.call(user5)
+      assert.equal(Number(bal3), 700)
+    })
+
+    it("task execution fails properly when needed", async () => {
+      // set the threshold back to 1
+      await identity.setApprovalThreshold(1, { from: owner })
+
+      //shouldn't be able to make a zero token transfer
+      const callData = token.contract.transfer.getData(user5, 999999, {
+        from: identity.address
+      })
+      const tx = await identity.execute(token.address, 0, callData, {
+        from: owner
+      })
+      const log = getLog(tx, "ExecutionFailed")
+    })
+
+    it("allows negative approval", async () => {
+      // set the threshold back to 2
+      //await identity.setApprovalThreshold(2, { from: owner })
+
+      const value = 0
+      const callData = token.contract.transfer.getData(user5, 300, {
+        from: identity.address
+      })
+      let tx = await identity.execute(token.address, value, callData, {
+        from: user4
+      })
+      // get the task ID
+      let log = getLog(tx, "ExecutionRequested")
+      const taskID = Number(log.args.executionId)
+
+      // owner has MANAGEMENT_KEY
+      tx = await identity.approve(taskID, false, { from: owner })
+      log = getLog(tx, "Approved")
+      assert.isFalse(log.args.approved)
     })
   })
 })
