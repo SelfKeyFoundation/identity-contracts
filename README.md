@@ -1,4 +1,4 @@
-# did-claims
+# did-claims (DEPRECATED)
 
 Smart contracts that implement self-sovereign identity, and verifiable claims.
 
